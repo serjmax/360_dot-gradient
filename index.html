@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Dot Field</title>
+
+<script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+
+<style>
+html, body{
+  width:100%;
+  height:100%;
+}
+
+body{
+  margin:0;
+  background:#111;
+  overflow:hidden;
+  font-family:Arial,sans-serif;
+  cursor:default;
+}
+
+canvas{
+  display:block;
+}
+
+.controls{
+  position:fixed;
+  top:16px;
+  right:16px;
+  z-index:10;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:14px;
+  width:240px;
+  max-height:calc(100vh - 32px);
+  overflow:auto;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:12px;
+  background:rgba(0,0,0,.42);
+  backdrop-filter:blur(10px);
+  color:#f3f3f3;
+}
+
+.control{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  width:100%;
+}
+
+.controls label{
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.controls select,
+.controls input{
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;
+  padding:8px 10px;
+  background:#111;
+  color:#fff;
+}
+
+.controls input[type="number"]{
+  width:100%;
+  box-sizing:border-box;
+}
+
+.controls input[type="file"]{
+  width:100%;
+  padding:6px;
+  box-sizing:border-box;
+}
+
+.controls input[type="range"]{
+  width:100%;
+  padding:0;
+}
+
+.controls button{
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;
+  padding:10px 12px;
+  background:#111;
+  color:#fff;
+  cursor:pointer;
+}
+
+.toggle{
+  flex-direction:row;
+  align-items:center;
+  gap:8px;
+  padding-top:4px;
+}
+
+.toggle label{
+  letter-spacing:.04em;
+}
+
+.toggle input[type="checkbox"]{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+.control-value{
+  font-size:12px;
+  color:rgba(255,255,255,.72);
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="controls">
+  <div class="control">
+    <label for="noise-type">Noise</label>
+    <select id="noise-type">
+      <option value="orbital">Orbital</option>
+      <option value="perlin">Perlin</option>
+      <option value="ridged">Ridged</option>
+      <option value="fbm">FBM</option>
+      <option value="warp">Domain Warp</option>
+      <option value="grain">Grain</option>
+      <option value="billow">Billow</option>
+      <option value="turbulence">Turbulence</option>
+      <option value="marble">Marble</option>
+      <option value="cellular">Cellular</option>
+      <option value="ripple">Ripple</option>
+      <option value="spiral">Spiral</option>
+      <option value="contour">Contour</option>
+      <option value="pulse">Pulse</option>
+    </select>
+  </div>
+  <div class="control">
+    <label for="point-count">Dots</label>
+    <input id="point-count" type="number" min="200" max="20000" step="100" value="2600">
+  </div>
+  <div class="control">
+    <label for="noise-scale">Noise Scale</label>
+    <input id="noise-scale" type="range" min="0.25" max="4" step="0.05" value="1">
+    <span id="noise-scale-value" class="control-value">1.00x</span>
+  </div>
+  <div class="control">
+    <label for="noise-threshold">Noise Threshold</label>
+    <input id="noise-threshold" type="range" min="0" max="1" step="0.01" value="0">
+    <span id="noise-threshold-value" class="control-value">0.00</span>
+  </div>
+  <div class="control">
+    <label for="image-noise-mix">Image/Noise Mix</label>
+    <input id="image-noise-mix" type="range" min="0" max="1" step="0.01" value="1">
+    <span id="image-noise-mix-value" class="control-value">1.00</span>
+  </div>
+  <div class="control">
+    <label for="image-upload">Image Map</label>
+    <input id="image-upload" type="file" accept="image/*">
+    <span id="image-upload-status" class="control-value">No image loaded</span>
+  </div>
+  <div class="control">
+    <label for="image-contrast">Image Contrast</label>
+    <input id="image-contrast" type="range" min="0.1" max="6" step="0.05" value="1">
+    <span id="image-contrast-value" class="control-value">1.00x</span>
+  </div>
+  <div class="control">
+    <label for="image-threshold">Threshold</label>
+    <input id="image-threshold" type="range" min="0" max="1" step="0.01" value="0">
+    <span id="image-threshold-value" class="control-value">0.00</span>
+  </div>
+  <div class="control toggle">
+    <input id="image-invert-mode" type="checkbox">
+    <label for="image-invert-mode">Invert Image</label>
+  </div>
+  <div class="control toggle">
+    <input id="image-color-mode" type="checkbox">
+    <label for="image-color-mode">Image Color</label>
+  </div>
+  <div class="control">
+    <label for="dot-levels">Dot Levels</label>
+    <input id="dot-levels" type="range" min="0" max="10" step="1" value="6">
+    <span id="dot-levels-value" class="control-value">6</span>
+  </div>
+  <div class="control">
+    <label for="noise-seed">Seed</label>
+    <input id="noise-seed" type="number" min="0" max="999999" step="1" value="271828">
+  </div>
+  <div class="control">
+    <label for="min-dot-size">Min Dot</label>
+    <input id="min-dot-size" type="range" min="0" max="24" step="0.5" value="0">
+    <span id="min-dot-size-value" class="control-value">0.0px</span>
+  </div>
+  <div class="control">
+    <label for="max-dot-size">Max Dot</label>
+    <input id="max-dot-size" type="range" min="2" max="64" step="0.5" value="22">
+    <span id="max-dot-size-value" class="control-value">22.0px</span>
+  </div>
+  <div class="control">
+    <label for="min-dot-brightness">Min Brightness</label>
+    <input id="min-dot-brightness" type="range" min="0" max="255" step="1" value="180">
+    <span id="min-dot-brightness-value" class="control-value">180</span>
+  </div>
+  <div class="control">
+    <label for="max-dot-brightness">Max Brightness</label>
+    <input id="max-dot-brightness" type="range" min="0" max="255" step="1" value="255">
+    <span id="max-dot-brightness-value" class="control-value">255</span>
+  </div>
+  <div class="control">
+    <button id="export-svg" type="button">Export SVG</button>
+  </div>
+  <div class="control toggle">
+    <input id="pause-animation" type="checkbox">
+    <label for="pause-animation">Pause</label>
+  </div>
+</div>
+
+<script>
+
+let noiseType = "orbital";
+let pointCount = 2600;
+let noiseScale = 1;
+let noiseThreshold = 0;
+let noiseSeedValue = 271828;
+let imageNoiseMix = 1;
+let imageContrast = 1;
+let imageThreshold = 0;
+let imageInvertMode = false;
+let imageColorMode = false;
+let dotLevels = 6;
+let minDotSize = 0;
+let maxDotSize = 22;
+let minDotBrightness = 180;
+let maxDotBrightness = 255;
+let isPaused = false;
+let sourceImage = null;
+let sourceImagePixelsReady = false;
+let imageModeEnabled = false;
+let imageOffsetX = 0;
+let imageOffsetY = 0;
+let isDraggingImage = false;
+let dragStartMouseX = 0;
+let dragStartMouseY = 0;
+let dragStartOffsetX = 0;
+let dragStartOffsetY = 0;
+
+function setup() {
+  noiseSeedValue = floor(random(1000000));
+  createCanvas(windowWidth,windowHeight);
+  noStroke();
+
+  const noiseSelect = document.getElementById("noise-type");
+  const pointCountInput = document.getElementById("point-count");
+  const noiseScaleInput = document.getElementById("noise-scale");
+  const noiseScaleValue = document.getElementById("noise-scale-value");
+  const noiseThresholdInput = document.getElementById("noise-threshold");
+  const noiseThresholdValue = document.getElementById("noise-threshold-value");
+  const imageNoiseMixInput = document.getElementById("image-noise-mix");
+  const imageNoiseMixValue = document.getElementById("image-noise-mix-value");
+  const imageUploadInput = document.getElementById("image-upload");
+  const imageUploadStatus = document.getElementById("image-upload-status");
+  const imageContrastInput = document.getElementById("image-contrast");
+  const imageContrastValue = document.getElementById("image-contrast-value");
+  const imageThresholdInput = document.getElementById("image-threshold");
+  const imageThresholdValue = document.getElementById("image-threshold-value");
+  const imageInvertModeInput = document.getElementById("image-invert-mode");
+  const imageColorModeInput = document.getElementById("image-color-mode");
+  const dotLevelsInput = document.getElementById("dot-levels");
+  const dotLevelsValue = document.getElementById("dot-levels-value");
+  const noiseSeedInput = document.getElementById("noise-seed");
+  const minDotSizeInput = document.getElementById("min-dot-size");
+  const minDotSizeValue = document.getElementById("min-dot-size-value");
+  const maxDotSizeInput = document.getElementById("max-dot-size");
+  const maxDotSizeValue = document.getElementById("max-dot-size-value");
+  const minDotBrightnessInput = document.getElementById("min-dot-brightness");
+  const minDotBrightnessValue = document.getElementById("min-dot-brightness-value");
+  const maxDotBrightnessInput = document.getElementById("max-dot-brightness");
+  const maxDotBrightnessValue = document.getElementById("max-dot-brightness-value");
+  const exportSvgButton = document.getElementById("export-svg");
+  const pauseInput = document.getElementById("pause-animation");
+
+  noiseSeedInput.value = String(noiseSeedValue);
+
+  noiseSelect.addEventListener("change", (event) => {
+    noiseType = event.target.value;
+    refreshFrame();
+  });
+
+  pointCountInput.addEventListener("input", (event) => {
+    const nextValue = Number(event.target.value);
+    pointCount = constrain(nextValue || 0,200,20000);
+    refreshFrame();
+  });
+
+  noiseScaleInput.addEventListener("input", (event) => {
+    noiseScale = Number(event.target.value);
+    noiseScaleValue.textContent = `${noiseScale.toFixed(2)}x`;
+    refreshFrame();
+  });
+
+  noiseThresholdInput.addEventListener("input", (event) => {
+    noiseThreshold = Number(event.target.value);
+    noiseThresholdValue.textContent = noiseThreshold.toFixed(2);
+    refreshFrame();
+  });
+
+  imageNoiseMixInput.addEventListener("input", (event) => {
+    imageNoiseMix = Number(event.target.value);
+    imageNoiseMixValue.textContent = imageNoiseMix.toFixed(2);
+    refreshFrame();
+  });
+
+  imageUploadInput.addEventListener("change", (event) => {
+    const [file] = event.target.files;
+
+    if (!file) {
+      sourceImage = null;
+      sourceImagePixelsReady = false;
+      imageModeEnabled = false;
+      imageUploadStatus.textContent = "No image loaded";
+      refreshFrame();
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener("load", (loadEvent) => {
+      loadImage(loadEvent.target.result, (loadedImage) => {
+        sourceImage = loadedImage;
+        sourceImage.loadPixels();
+        sourceImagePixelsReady = true;
+        imageModeEnabled = true;
+        imageOffsetX = 0;
+        imageOffsetY = 0;
+        imageUploadStatus.textContent = `${file.name} loaded`;
+        refreshFrame();
+      });
+    });
+    reader.readAsDataURL(file);
+  });
+
+  imageContrastInput.addEventListener("input", (event) => {
+    imageContrast = Number(event.target.value);
+    imageContrastValue.textContent = `${imageContrast.toFixed(2)}x`;
+    refreshFrame();
+  });
+
+  imageThresholdInput.addEventListener("input", (event) => {
+    imageThreshold = Number(event.target.value);
+    imageThresholdValue.textContent = imageThreshold.toFixed(2);
+    refreshFrame();
+  });
+
+  imageInvertModeInput.addEventListener("change", (event) => {
+    imageInvertMode = event.target.checked;
+    refreshFrame();
+  });
+
+  imageColorModeInput.addEventListener("change", (event) => {
+    imageColorMode = event.target.checked;
+    refreshFrame();
+  });
+
+  dotLevelsInput.addEventListener("input", (event) => {
+    dotLevels = Number(event.target.value);
+    dotLevelsValue.textContent = dotLevels === 0 ? "Off" : String(dotLevels);
+    refreshFrame();
+  });
+
+  noiseSeedInput.addEventListener("input", (event) => {
+    noiseSeedValue = constrain(Math.floor(Number(event.target.value) || 0),0,999999);
+    event.target.value = String(noiseSeedValue);
+    refreshFrame();
+  });
+
+  minDotSizeInput.addEventListener("input", (event) => {
+    minDotSize = Number(event.target.value);
+
+    if (minDotSize > maxDotSize) {
+      maxDotSize = minDotSize;
+      maxDotSizeInput.value = String(maxDotSize);
+      maxDotSizeValue.textContent = `${maxDotSize.toFixed(1)}px`;
+    }
+
+    minDotSizeValue.textContent = `${minDotSize.toFixed(1)}px`;
+    refreshFrame();
+  });
+
+  maxDotSizeInput.addEventListener("input", (event) => {
+    maxDotSize = Number(event.target.value);
+
+    if (maxDotSize < minDotSize) {
+      minDotSize = maxDotSize;
+      minDotSizeInput.value = String(minDotSize);
+      minDotSizeValue.textContent = `${minDotSize.toFixed(1)}px`;
+    }
+
+    maxDotSizeValue.textContent = `${maxDotSize.toFixed(1)}px`;
+    refreshFrame();
+  });
+
+  minDotBrightnessInput.addEventListener("input", (event) => {
+    minDotBrightness = Number(event.target.value);
+
+    if (minDotBrightness > maxDotBrightness) {
+      maxDotBrightness = minDotBrightness;
+      maxDotBrightnessInput.value = String(maxDotBrightness);
+      maxDotBrightnessValue.textContent = String(maxDotBrightness);
+    }
+
+    minDotBrightnessValue.textContent = String(minDotBrightness);
+    refreshFrame();
+  });
+
+  maxDotBrightnessInput.addEventListener("input", (event) => {
+    maxDotBrightness = Number(event.target.value);
+
+    if (maxDotBrightness < minDotBrightness) {
+      minDotBrightness = maxDotBrightness;
+      minDotBrightnessInput.value = String(minDotBrightness);
+      minDotBrightnessValue.textContent = String(minDotBrightness);
+    }
+
+    maxDotBrightnessValue.textContent = String(maxDotBrightness);
+    refreshFrame();
+  });
+
+  exportSvgButton.addEventListener("click", () => {
+    exportSVG();
+  });
+
+  pauseInput.addEventListener("change", (event) => {
+    isPaused = event.target.checked;
+
+    if (isPaused) {
+      noLoop();
+      return;
+    }
+
+    loop();
+  });
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth,windowHeight);
+  refreshFrame();
+}
+
+function fract(value) {
+  return value - floor(value);
+}
+
+function refreshFrame() {
+  if (isPaused) {
+    redraw();
+  }
+}
+
+function quantizeSize(size) {
+  if (dotLevels === 0 || maxDotSize <= minDotSize) {
+    return size;
+  }
+
+  if (dotLevels === 1) {
+    return minDotSize;
+  }
+
+  let normalized = map(size,minDotSize,maxDotSize,0,1,true);
+  let stepped = round(normalized * (dotLevels - 1)) / (dotLevels - 1);
+  return lerp(minDotSize,maxDotSize,stepped);
+}
+
+function applyThreshold(value,threshold) {
+  if (value <= threshold) {
+    return 0;
+  }
+
+  return map(value,threshold,1,0,1,true);
+}
+
+function getFieldBounds() {
+  let fieldSize = min(width,height) * 0.86;
+  let fieldLeft = (width - fieldSize) * 0.5;
+  let fieldTop = (height - fieldSize) * 0.5;
+  return { fieldSize, fieldLeft, fieldTop };
+}
+
+function getStep(fieldSize) {
+  let step = sqrt((fieldSize * fieldSize) / pointCount);
+  return constrain(step,8,48);
+}
+
+function isInsideField(x,y) {
+  let { fieldSize, fieldLeft, fieldTop } = getFieldBounds();
+  return x >= fieldLeft && x <= fieldLeft + fieldSize && y >= fieldTop && y <= fieldTop + fieldSize;
+}
+
+function getImagePlacement(fieldLeft,fieldTop,fieldSize) {
+  let imageRatio = sourceImage.width / sourceImage.height;
+  let fieldRatio = 1;
+  let drawnWidth = fieldSize;
+  let drawnHeight = fieldSize;
+
+  if (imageRatio > fieldRatio) {
+    drawnHeight = fieldSize;
+    drawnWidth = fieldSize * imageRatio;
+  } else {
+    drawnWidth = fieldSize;
+    drawnHeight = fieldSize / imageRatio;
+  }
+
+  let minOffsetX = min(0,fieldSize - drawnWidth);
+  let minOffsetY = min(0,fieldSize - drawnHeight);
+  let constrainedOffsetX = constrain(imageOffsetX,minOffsetX,0);
+  let constrainedOffsetY = constrain(imageOffsetY,minOffsetY,0);
+
+  return {
+    drawnWidth,
+    drawnHeight,
+    drawLeft: fieldLeft + constrainedOffsetX + (fieldSize - drawnWidth) * 0.5,
+    drawTop: fieldTop + constrainedOffsetY + (fieldSize - drawnHeight) * 0.5,
+    minOffsetX,
+    minOffsetY
+  };
+}
+
+function getImageValue(x,y,fieldLeft,fieldTop,fieldSize) {
+  if (!sourceImage || !sourceImagePixelsReady) {
+    return null;
+  }
+
+  let placement = getImagePlacement(fieldLeft,fieldTop,fieldSize);
+  let u = (x - placement.drawLeft) / placement.drawnWidth;
+  let v = (y - placement.drawTop) / placement.drawnHeight;
+
+  if (u < 0 || u >= 1 || v < 0 || v >= 1) {
+    return 0;
+  }
+
+  let sampleX = floor(u * sourceImage.width);
+  let sampleY = floor(v * sourceImage.height);
+  let pixelIndex = (sampleY * sourceImage.width + sampleX) * 4;
+  let redValue = sourceImage.pixels[pixelIndex];
+  let greenValue = sourceImage.pixels[pixelIndex + 1];
+  let blueValue = sourceImage.pixels[pixelIndex + 2];
+  let brightnessValue = (redValue + greenValue + blueValue) / 3;
+  let normalized = brightnessValue / 255;
+  let contrasted = constrain((normalized - 0.5) * imageContrast + 0.5,0,1);
+  let mappedValue = imageInvertMode ? 1 - contrasted : contrasted;
+
+  if (mappedValue <= imageThreshold) {
+    return {
+      value: 0,
+      color: {
+        r: redValue,
+        g: greenValue,
+        b: blueValue
+      }
+    };
+  }
+
+  return {
+    value: map(mappedValue,imageThreshold,1,0,1,true),
+    color: {
+      r: redValue,
+      g: greenValue,
+      b: blueValue
+    }
+  };
+}
+
+function getNoiseValue(x,y,t) {
+  let scale = 0.00385 * noiseScale;
+
+  if (noiseType === "orbital") {
+    let centerX = width * 0.5;
+    let centerY = height * 0.5;
+    let dx = x - centerX;
+    let dy = y - centerY;
+    let radius = sqrt(dx * dx + dy * dy);
+    let angle = atan2(dy,dx);
+    let maxRadius = min(width,height) * 0.44;
+    let ring = cos((radius / maxRadius) * TWO_PI * 1.1 - t * 1.2);
+    let swirl = sin(angle * 2.6 - t * 0.8);
+    let field = ring * 0.68 + swirl * 0.22 + noise(x * scale * 0.85,y * scale * 0.85,t * 0.45) * 0.35;
+    return constrain(field * 0.5 + 0.5,0,1);
+  }
+
+  if (noiseType === "perlin") {
+    return noise(x * scale,y * scale,t);
+  }
+
+  if (noiseType === "ridged") {
+    return 1 - abs(noise(x * scale,y * scale,t) * 2 - 1);
+  }
+
+  if (noiseType === "fbm") {
+    let value = 0;
+    let amplitude = 0.55;
+    let frequency = 1;
+    let amplitudeSum = 0;
+
+    for (let i = 0; i < 4; i++) {
+      value += noise(x * scale * frequency,y * scale * frequency,t * frequency) * amplitude;
+      amplitudeSum += amplitude;
+      amplitude *= 0.5;
+      frequency *= 2;
+    }
+
+    return value / amplitudeSum;
+  }
+
+  if (noiseType === "warp") {
+    let warpX = noise(x * scale * 0.8,y * scale * 0.8,t) * 220 - 110;
+    let warpY = noise(x * scale * 0.8 + 50,y * scale * 0.8 + 50,t) * 220 - 110;
+    return noise((x + warpX) * scale * 1.2,(y + warpY) * scale * 1.2,t);
+  }
+
+  if (noiseType === "grain") {
+    let coarse = noise(x * scale * 0.7,y * scale * 0.7,t * 0.7);
+    let fine = noise(x * 0.03,y * 0.03,t * 1.6);
+    return constrain(coarse * 0.65 + fine * 0.35,0,1);
+  }
+
+  if (noiseType === "billow") {
+    return abs(noise(x * scale,y * scale,t) * 2 - 1);
+  }
+
+  if (noiseType === "turbulence") {
+    let value = 0;
+    let amplitude = 0.6;
+    let frequency = 1;
+    let amplitudeSum = 0;
+
+    for (let i = 0; i < 5; i++) {
+      value += abs(noise(x * scale * frequency,y * scale * frequency,t * frequency) * 2 - 1) * amplitude;
+      amplitudeSum += amplitude;
+      amplitude *= 0.55;
+      frequency *= 2;
+    }
+
+    return value / amplitudeSum;
+  }
+
+  if (noiseType === "marble") {
+    let wave = sin((x + y) * scale * 2.2 + noise(x * scale,y * scale,t) * 6.28318 + t * 4);
+    return wave * 0.5 + 0.5;
+  }
+
+  if (noiseType === "cellular") {
+    let cellX = floor(x * scale * 5);
+    let cellY = floor(y * scale * 5);
+    let localX = fract(x * scale * 5);
+    let localY = fract(y * scale * 5);
+    let nearest = 10;
+
+    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+      for (let offsetY = -1; offsetY <= 1; offsetY++) {
+        let seedX = cellX + offsetX;
+        let seedY = cellY + offsetY;
+        let pointX = noise(seedX * 0.31,seedY * 0.31,t) + offsetX;
+        let pointY = noise(seedX * 0.73 + 20,seedY * 0.73 + 20,t) + offsetY;
+        let current = dist(localX,localY,pointX,pointY);
+        nearest = min(nearest,current);
+      }
+    }
+
+    return constrain(1 - nearest,0,1);
+  }
+
+  if (noiseType === "ripple") {
+    let centerX = width * 0.5;
+    let centerY = height * 0.5;
+    let radial = dist(x,y,centerX,centerY) * scale * 2.4;
+    let ripple = sin(radial - t * 8);
+    let modulation = noise(x * scale * 0.8,y * scale * 0.8,t);
+    return constrain(ripple * 0.35 + modulation * 0.65 + 0.2,0,1);
+  }
+
+  if (noiseType === "spiral") {
+    let dx = x - width * 0.5;
+    let dy = y - height * 0.5;
+    let angle = atan2(dy,dx);
+    let radius = sqrt(dx * dx + dy * dy) * scale * 1.6;
+    let swirl = sin(angle * 5 + radius - t * 5);
+    let modulation = noise(x * scale,y * scale,t);
+    return constrain(swirl * 0.4 + modulation * 0.6 + 0.2,0,1);
+  }
+
+  if (noiseType === "contour") {
+    let raw = noise(x * scale,y * scale,t);
+    return floor(raw * 6) / 5;
+  }
+
+  if (noiseType === "pulse") {
+    let slow = noise(x * scale * 0.6,y * scale * 0.6,t * 0.5);
+    let fast = noise(x * scale * 2.2 + 100,y * scale * 2.2 + 100,t * 1.8);
+    let pulse = sin(t * 6 + slow * 6.28318) * 0.5 + 0.5;
+    return constrain(pulse * 0.5 + fast * 0.5,0,1);
+  }
+
+  return noise(x * scale,y * scale,t);
+}
+
+function getBackdropSpeckles() {
+  randomSeed(noiseSeedValue + 101);
+
+  let speckles = [];
+  for (let i = 0; i < 1100; i++) {
+    speckles.push({
+      x: random(width),
+      y: random(height),
+      alpha: random(8,22)
+    });
+  }
+
+  return speckles;
+}
+
+function getDotData() {
+  noiseSeed(noiseSeedValue);
+  randomSeed(noiseSeedValue);
+
+  let { fieldSize, fieldLeft, fieldTop } = getFieldBounds();
+  let step = getStep(fieldSize);
+  let time = frameCount * 0.008;
+  let maxDistance = fieldSize * 0.5;
+  let dots = [];
+
+  for (let x = fieldLeft + step * 0.5; x < fieldLeft + fieldSize; x += step) {
+    for (let y = fieldTop + step * 0.5; y < fieldTop + fieldSize; y += step) {
+      let centerDistance = dist(x,y,width * 0.5,height * 0.5);
+      let baseSize = map(centerDistance,0,maxDistance,minDotSize,maxDotSize,true);
+      let imageSample = imageModeEnabled ? getImageValue(x,y,fieldLeft,fieldTop,fieldSize) : null;
+      let imageValue = imageSample === null ? null : imageSample.value;
+      let proceduralValue = applyThreshold(getNoiseValue(x,y,time),noiseThreshold);
+      let mixedValue = imageValue === null
+        ? proceduralValue
+        : lerp(proceduralValue,imageValue,imageNoiseMix);
+      let size = lerp(minDotSize,maxDotSize,mixedValue);
+
+      if (imageValue === null) {
+        size = size > 0 ? (size * 0.92) + (baseSize * 0.08) : 0;
+      } else if (imageNoiseMix < 1) {
+        size = size > 0 ? (size * 0.96) + (baseSize * 0.04) : 0;
+      }
+
+      size = constrain(size,minDotSize,maxDotSize);
+      size = quantizeSize(size);
+
+      if (size <= 0.2) {
+        continue;
+      }
+
+      dots.push({
+        x,
+        y,
+        size,
+        glow: map(size,max(0.001,minDotSize),maxDotSize,minDotBrightness,maxDotBrightness,true),
+        color: imageColorMode && imageSample !== null
+          ? imageSample.color
+          : null
+      });
+    }
+  }
+
+  return { dots, fieldSize, fieldLeft, fieldTop };
+}
+
+function drawBackdrop(fieldSize,fieldLeft,fieldTop) {
+  background(18);
+
+  let speckles = getBackdropSpeckles();
+  for (const speckle of speckles) {
+    let alpha = speckle.alpha;
+    fill(255,alpha);
+    rect(speckle.x,speckle.y,1,1);
+  }
+}
+
+function draw() {
+  let { dots, fieldSize, fieldLeft, fieldTop } = getDotData();
+
+  drawBackdrop(fieldSize,fieldLeft,fieldTop);
+
+  for (const dot of dots) {
+    if (dot.color) {
+      fill(dot.color.r,dot.color.g,dot.color.b);
+    } else {
+      fill(dot.glow);
+    }
+    circle(dot.x,dot.y,dot.size);
+  }
+}
+
+function exportSVG() {
+  let { dots, fieldSize, fieldLeft, fieldTop } = getDotData();
+  let speckles = getBackdropSpeckles();
+  let parts = [];
+
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
+  parts.push(`<rect width="${width}" height="${height}" fill="rgb(18,18,18)"/>`);
+
+  for (const speckle of speckles) {
+    parts.push(`<rect x="${speckle.x.toFixed(2)}" y="${speckle.y.toFixed(2)}" width="1" height="1" fill="white" fill-opacity="${(speckle.alpha / 255).toFixed(3)}"/>`);
+  }
+
+  for (const dot of dots) {
+    if (dot.color) {
+      parts.push(`<circle cx="${dot.x.toFixed(2)}" cy="${dot.y.toFixed(2)}" r="${(dot.size * 0.5).toFixed(2)}" fill="rgb(${dot.color.r},${dot.color.g},${dot.color.b})"/>`);
+      continue;
+    }
+
+    let c = Math.round(dot.glow);
+    parts.push(`<circle cx="${dot.x.toFixed(2)}" cy="${dot.y.toFixed(2)}" r="${(dot.size * 0.5).toFixed(2)}" fill="rgb(${c},${c},${c})"/>`);
+  }
+
+  parts.push(`</svg>`);
+
+  let blob = new Blob([parts.join("")], { type: "image/svg+xml;charset=utf-8" });
+  let url = URL.createObjectURL(blob);
+  let link = document.createElement("a");
+  link.href = url;
+  link.download = `dot-field-${noiseSeedValue}.svg`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function mousePressed() {
+  if (!imageModeEnabled || !isInsideField(mouseX,mouseY)) {
+    return;
+  }
+
+  isDraggingImage = true;
+  dragStartMouseX = mouseX;
+  dragStartMouseY = mouseY;
+  dragStartOffsetX = imageOffsetX;
+  dragStartOffsetY = imageOffsetY;
+}
+
+function mouseDragged() {
+  if (!isDraggingImage || !sourceImage) {
+    return;
+  }
+
+  let { fieldSize, fieldLeft, fieldTop } = getFieldBounds();
+  let placement = getImagePlacement(fieldLeft,fieldTop,fieldSize);
+
+  imageOffsetX = constrain(
+    dragStartOffsetX + (mouseX - dragStartMouseX),
+    placement.minOffsetX,
+    0
+  );
+  imageOffsetY = constrain(
+    dragStartOffsetY + (mouseY - dragStartMouseY),
+    placement.minOffsetY,
+    0
+  );
+  refreshFrame();
+}
+
+function mouseReleased() {
+  isDraggingImage = false;
+}
+
+</script>
+
+</body>
+</html>
