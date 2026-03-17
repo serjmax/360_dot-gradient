@@ -122,6 +122,7 @@ canvas{
   <div class="control">
     <label for="noise-type">Noise</label>
     <select id="noise-type">
+      <option value="blobs">Blobs</option>
       <option value="orbital">Orbital</option>
       <option value="perlin">Perlin</option>
       <option value="ridged">Ridged</option>
@@ -151,6 +152,34 @@ canvas{
     <label for="noise-threshold">Noise Threshold</label>
     <input id="noise-threshold" type="range" min="0" max="1" step="0.01" value="0">
     <span id="noise-threshold-value" class="control-value">0.00</span>
+  </div>
+  <div class="control">
+    <label for="blob-density">Blob Density</label>
+    <input id="blob-density" type="range" min="1" max="8" step="0.1" value="3.2">
+    <span id="blob-density-value" class="control-value">3.20</span>
+  </div>
+  <div class="control">
+    <label for="blob-count">Blob Count</label>
+    <input id="blob-count" type="range" min="1" max="8" step="0.1" value="2.4">
+    <span id="blob-count-value" class="control-value">2.40</span>
+  </div>
+  <div class="control">
+    <label for="blob-stretch">Blob Stretch</label>
+    <input id="blob-stretch" type="range" min="0.4" max="2.5" step="0.05" value="1.6">
+    <span id="blob-stretch-value" class="control-value">1.60x</span>
+  </div>
+  <div class="control">
+    <label for="blob-softness">Blob Softness</label>
+    <input id="blob-softness" type="range" min="0.05" max="1" step="0.01" value="0.28">
+    <span id="blob-softness-value" class="control-value">0.28</span>
+  </div>
+  <div class="control">
+    <label for="blend-mode">Blend Mode</label>
+    <select id="blend-mode">
+      <option value="mix">Mix</option>
+      <option value="multiply">Multiply</option>
+      <option value="max">Max</option>
+    </select>
   </div>
   <div class="control">
     <label for="image-noise-mix">Image/Noise Mix</label>
@@ -224,7 +253,12 @@ let noiseType = "orbital";
 let pointCount = 2600;
 let noiseScale = 1;
 let noiseThreshold = 0;
+let blobDensity = 3.2;
+let blobCount = 2.4;
+let blobStretch = 1.6;
+let blobSoftness = 0.28;
 let noiseSeedValue = 271828;
+let blendMode = "mix";
 let imageNoiseMix = 1;
 let imageContrast = 1;
 let imageThreshold = 0;
@@ -258,6 +292,15 @@ function setup() {
   const noiseScaleValue = document.getElementById("noise-scale-value");
   const noiseThresholdInput = document.getElementById("noise-threshold");
   const noiseThresholdValue = document.getElementById("noise-threshold-value");
+  const blobDensityInput = document.getElementById("blob-density");
+  const blobDensityValue = document.getElementById("blob-density-value");
+  const blobCountInput = document.getElementById("blob-count");
+  const blobCountValue = document.getElementById("blob-count-value");
+  const blobStretchInput = document.getElementById("blob-stretch");
+  const blobStretchValue = document.getElementById("blob-stretch-value");
+  const blobSoftnessInput = document.getElementById("blob-softness");
+  const blobSoftnessValue = document.getElementById("blob-softness-value");
+  const blendModeInput = document.getElementById("blend-mode");
   const imageNoiseMixInput = document.getElementById("image-noise-mix");
   const imageNoiseMixValue = document.getElementById("image-noise-mix-value");
   const imageUploadInput = document.getElementById("image-upload");
@@ -304,6 +347,35 @@ function setup() {
   noiseThresholdInput.addEventListener("input", (event) => {
     noiseThreshold = Number(event.target.value);
     noiseThresholdValue.textContent = noiseThreshold.toFixed(2);
+    refreshFrame();
+  });
+
+  blobDensityInput.addEventListener("input", (event) => {
+    blobDensity = Number(event.target.value);
+    blobDensityValue.textContent = blobDensity.toFixed(2);
+    refreshFrame();
+  });
+
+  blobCountInput.addEventListener("input", (event) => {
+    blobCount = Number(event.target.value);
+    blobCountValue.textContent = blobCount.toFixed(2);
+    refreshFrame();
+  });
+
+  blobStretchInput.addEventListener("input", (event) => {
+    blobStretch = Number(event.target.value);
+    blobStretchValue.textContent = `${blobStretch.toFixed(2)}x`;
+    refreshFrame();
+  });
+
+  blobSoftnessInput.addEventListener("input", (event) => {
+    blobSoftness = Number(event.target.value);
+    blobSoftnessValue.textContent = blobSoftness.toFixed(2);
+    refreshFrame();
+  });
+
+  blendModeInput.addEventListener("change", (event) => {
+    blendMode = event.target.value;
     refreshFrame();
   });
 
@@ -452,6 +524,11 @@ function fract(value) {
   return value - floor(value);
 }
 
+function smoothStep(edge0,edge1,x) {
+  let t = constrain((x - edge0) / max(0.0001,edge1 - edge0),0,1);
+  return t * t * (3 - 2 * t);
+}
+
 function refreshFrame() {
   if (isPaused) {
     redraw();
@@ -478,6 +555,24 @@ function applyThreshold(value,threshold) {
   }
 
   return map(value,threshold,1,0,1,true);
+}
+
+function combineValues(proceduralValue,imageValue) {
+  if (imageValue === null) {
+    return proceduralValue;
+  }
+
+  if (blendMode === "multiply") {
+    let multiplied = proceduralValue * imageValue;
+    return lerp(proceduralValue,multiplied,imageNoiseMix);
+  }
+
+  if (blendMode === "max") {
+    let maximum = max(proceduralValue,imageValue);
+    return lerp(proceduralValue,maximum,imageNoiseMix);
+  }
+
+  return lerp(proceduralValue,imageValue,imageNoiseMix);
 }
 
 function getFieldBounds() {
@@ -573,6 +668,26 @@ function getImageValue(x,y,fieldLeft,fieldTop,fieldSize) {
 
 function getNoiseValue(x,y,t) {
   let scale = 0.00385 * noiseScale;
+
+  if (noiseType === "blobs") {
+    let centerX = width * 0.5;
+    let centerY = height * 0.5;
+    let dx = x - centerX;
+    let dy = y - centerY;
+    let diagX = (dx + dy) * 0.70710678;
+    let diagY = (dy - dx) * 0.70710678;
+    let fieldScale = scale * blobDensity;
+    let stretchedX = diagX / max(0.001,blobStretch);
+    let stretchedY = diagY * max(0.001,blobStretch);
+    let low = noise(stretchedX * fieldScale * 0.48,stretchedY * fieldScale * 0.48,t * 0.14);
+    let mid = noise(stretchedX * fieldScale * 1.05 + 90,stretchedY * fieldScale * 1.05 + 90,t * 0.24);
+    let ridged = 1 - abs(noise(stretchedX * fieldScale * 1.65 + 180,stretchedY * fieldScale * 1.65 + 180,t * 0.2) * 2 - 1);
+    let islands = noise(stretchedX * scale * blobCount * 0.22 + 260,stretchedY * scale * blobCount * 0.22 + 260,t * 0.08);
+    let islandMask = smoothStep(0.52,0.86,islands);
+    let shape = low * 0.52 + mid * 0.2 + ridged * 0.18 + islandMask * 0.28;
+    let blob = smoothStep(1 - blobSoftness,1,shape) * islandMask;
+    return constrain(blob,0,1);
+  }
 
   if (noiseType === "orbital") {
     let centerX = width * 0.5;
@@ -736,9 +851,7 @@ function getDotData() {
       let imageSample = imageModeEnabled ? getImageValue(x,y,fieldLeft,fieldTop,fieldSize) : null;
       let imageValue = imageSample === null ? null : imageSample.value;
       let proceduralValue = applyThreshold(getNoiseValue(x,y,time),noiseThreshold);
-      let mixedValue = imageValue === null
-        ? proceduralValue
-        : lerp(proceduralValue,imageValue,imageNoiseMix);
+      let mixedValue = combineValues(proceduralValue,imageValue);
       let size = lerp(minDotSize,maxDotSize,mixedValue);
 
       if (imageValue === null) {
